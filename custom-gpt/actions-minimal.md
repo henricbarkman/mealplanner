@@ -85,6 +85,60 @@ paths:
       responses:
         '200':
           description: Notion block children payload
+  /v1/pages:
+    post:
+      operationId: createPage
+      summary: Create a Notion page in the Mat workspace
+      security:
+        - notionAuth: []
+      parameters:
+        - name: Notion-Version
+          in: header
+          required: true
+          description: Notion API version header, e.g. 2022-06-28.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - parent
+                - properties
+              properties:
+                parent:
+                  type: object
+                  required:
+                    - database_id
+                  properties:
+                    database_id:
+                      type: string
+                      description: Notion database id that will own the new page.
+                  additionalProperties: true
+                properties:
+                  type: object
+                  description: Page properties, matching the Notion database schema.
+                  additionalProperties: true
+                children:
+                  type: array
+                  description: Optional block content to append to the page.
+                  items:
+                    type: object
+                    additionalProperties: true
+                icon:
+                  type: object
+                  description: Optional page icon definition.
+                  additionalProperties: true
+                cover:
+                  type: object
+                  description: Optional page cover definition.
+                  additionalProperties: true
+              additionalProperties: false
+      responses:
+        '200':
+          description: Notion page creation response
 components:
   securitySchemes:
     notionAuth:
