@@ -6,7 +6,7 @@ Bas-URL: https://<project-ref>.functions.supabase.co
 ### GET /meals
 - **query** *(string, valfri)*: fritext i titel.
 - **categories** *(string|list, valfri)*: en eller flera Kategori-taggar.
-- **ratings** *(string|list, valfri)*: en eller flera Betyg-taggar.
+- **ratings** *(string|list, valfri)*: en eller flera Betyg-taggar (`A1`=vuxen A tyckte det var gott, `L3`=barn L tyckte det inte var gott osv.).
 - **cursor** *(string, valfri)*: Supabase-forward cursor (värdet från 
 ext_cursor).
 - **limit** *(int, valfri)*: max 1–100 (default 10).

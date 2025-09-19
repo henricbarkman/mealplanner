@@ -50,7 +50,7 @@ User ──> Custom GPT (Matplaneraren)
 - **Custom GPT** – beter sig enligt `custom-gpt/systemprompt.md` (språk, stil, allergiregler, format).
 - **Actions/OpenAPI** – definierar säkra anrop från GPT till orchestratorn, se `custom-gpt/actions.md`.
 - **Supabase Edge Functions** – kapslar logik för att **läsa/skriva** mot Notion (meals & meal‑plans).
-- **Notion** – källsanning för måltider och veckomenyer.
+- **Notion** – källsanning för måltider och veckomenyer. Betygsfältet (multi-select) följer <bokstav><siffra>: A/H = vuxna, I/L = barn; siffror 1=Gott, 2=Okej, 3=Inte gott.
 - **Shoppinglista** – integreras efter veckomeny (Google Keep via Make‑webhook eller Notion‑lista).
 
 ---
