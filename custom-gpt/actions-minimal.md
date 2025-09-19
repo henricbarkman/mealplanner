@@ -1,225 +1,56 @@
-﻿openapi: 3.1.0
+openapi: 3.1.0
 info:
-  title: Meals API
-  version: 1.0.0
+  title: Notion Mat Database
+  version: "1.0"
 servers:
-  - url: https://rsanajkrlqxalfpdjqyj.functions.supabase.co
-components:
-  securitySchemes:
-    supabaseAuth:
-      type: http
-      scheme: bearer
-  schemas:
-    MealSummary:
-      type: object
-      required: [id, title, categories, ratings, url]
-      properties:
-        id:
-          type: string
-          description: Notion page id
-        title:
-          type: string
-        categories:
-          type: array
-          items:
-            type: string
-        ratings:
-          type: array
-          items:
-            type: string
-          description: "Family rating tags. Format <bokstav><siffra>: A/H = vuxna, I/L = barn; 1 = gott, 2 = okej, 3 = inte gott."
-        comment:
-          type: string
-          nullable: true
-        url:
-          type: string
-          format: uri
-    MealDetail:
-      allOf:
-        - $ref: "#/components/schemas/MealSummary"
-        - type: object
-          required: [content_markdown]
-          properties:
-            content_markdown:
-              type: string
-              description: Notion page content rendered as Markdown
-    MealsListResponse:
-      type: object
-      required: [meals, has_more, next_cursor]
-      properties:
-        meals:
-          type: array
-          items:
-            $ref: "#/components/schemas/MealSummary"
-        has_more:
-          type: boolean
-        next_cursor:
-          type: string
-          nullable: true
-    CreateMealRequest:
-      type: object
-      required: [title]
-      properties:
-        title:
-          type: string
-        categories:
-          type: array
-          items:
-            type: string
-        ratings:
-          type: array
-          items:
-            type: string
-          description: "Family rating tags. Format <bokstav><siffra>: A/H = vuxna, I/L = barn; 1 = gott, 2 = okej, 3 = inte gott."
-        comment:
-          type: string
-          nullable: true
-        content_markdown:
-          type: string
-          nullable: true
-    CreateMealResponse:
-      type: object
-      required: [id, url]
-      properties:
-        id:
-          type: string
-        url:
-          type: string
-          format: uri
-    ErrorResponse:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: string
-        code:
-          type: string
-          nullable: true
+  - url: https://api.notion.com
 paths:
-  /meals:
-    get:
-      operationId: listMeals
-      security:
-        - supabaseAuth: []
-      parameters:
-        - name: query
-          in: query
-          schema:
-            type: string
-          description: Fritextsökning i titel.
-        - name: categories
-          in: query
-          schema:
-            oneOf:
-              - type: string
-              - type: array
-                items:
-                  type: string
-          style: form
-          explode: true
-          description: En eller flera kategori-taggar.
-        - name: ratings
-          in: query
-          schema:
-            oneOf:
-              - type: string
-              - type: array
-                items:
-                  type: string
-          style: form
-          explode: true
-          description: Betygstaggar i formatet <bokstav><siffra>.
-        - name: cursor
-          in: query
-          schema:
-            type: string
-          description: Cursor från föregående svar (next_cursor).
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 10
-          description: Antal poster per sida.
-      responses:
-        '200':
-          description: Lista med måltider
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MealsListResponse"
-        '400':
-          description: Ogiltiga parametrar
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        '500':
-          description: Serverfel
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+  /v1/databases/250b0484bfa480b99341f936bcce2f6d/query:
     post:
-      operationId: createMeal
+      operationId: queryMatDatabase
+      summary: Query the Mat database
       security:
-        - supabaseAuth: []
+        - notionAuth: []
+      parameters:
+        - name: Notion-Version
+          in: header
+          required: true
+          description: Notion API version header, e.g. 2022-06-28.
+          schema:
+            type: string
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateMealRequest"
-      responses:
-        '201':
-          description: Recept skapat
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CreateMealResponse"
-        '400':
-          description: Valideringsfel
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        '500':
-          description: Serverfel
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /meals/{pageId}:
-    get:
-      operationId: getMeal
-      security:
-        - supabaseAuth: []
-      parameters:
-        - name: pageId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Notion page id (kompakt eller med bindestreck)
+              $ref: '#/components/schemas/QueryRequest'
       responses:
         '200':
-          description: Hämtat recept
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MealDetail"
-        '404':
-          description: Hittades inte
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        '500':
-          description: Serverfel
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-security:
-  - supabaseAuth: []
+          description: Notion response payload
+components:
+  securitySchemes:
+    notionAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: notion_api_key
+  schemas:
+    QueryRequest:
+      type: object
+      properties:
+        filter:
+          type: object
+          description: Optional Notion filter definition.
+        sorts:
+          type: array
+          items:
+            type: object
+          description: Optional sort definitions.
+        start_cursor:
+          type: string
+          description: Cursor from a previous response.
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Number of pages to return (max 100).
+      additionalProperties: true
