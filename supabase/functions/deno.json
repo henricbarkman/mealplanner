@@ -1,0 +1,10 @@
+{
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "deno.ns", "deno.unstable"],
+    "strict": true
+  },
+  "tasks": {
+    "test": "deno test --allow-env --allow-net --fail-fast"
+  }
+}
