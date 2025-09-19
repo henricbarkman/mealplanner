@@ -23,9 +23,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/QueryRequest'
+              $ref: "#/components/schemas/QueryRequest"
       responses:
-        '200':
+        "200":
           description: Notion response payload
   /v1/pages/{page_id}:
     get:
@@ -47,8 +47,35 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Notion page payload
+    patch:
+      operationId: updateMealPage
+      summary: Update meal properties on an existing Notion page
+      security:
+        - notionAuth: []
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          description: Notion page identifier to update.
+          schema:
+            type: string
+        - name: Notion-Version
+          in: header
+          required: true
+          description: Notion API version header, e.g. 2022-06-28.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMealPageRequest"
+      responses:
+        "200":
+          description: Notion page update response
   /v1/blocks/{block_id}/children:
     get:
       operationId: listBlockChildren
@@ -79,11 +106,11 @@ paths:
         - name: start_cursor
           in: query
           required: false
-          description: Cursor from a previous response to paginate results.
+          description: Cursor fr n f reg ende svar f r att paginera resultat.
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Notion block children payload
   /v1/pages:
     post:
@@ -139,7 +166,7 @@ paths:
                   additionalProperties: true
               additionalProperties: false
       responses:
-        '200':
+        "200":
           description: Notion page creation response
 components:
   securitySchemes:
@@ -161,10 +188,46 @@ components:
           description: Optional sort definitions.
         start_cursor:
           type: string
-          description: Cursor from a previous response to paginate results.
+          description: Cursor fr n f reg ende svar f r paginering.
         page_size:
           type: integer
           minimum: 1
           maximum: 100
           description: Number of pages to return (max 100).
       additionalProperties: true
+    UpdateMealPageRequest:
+      type: object
+      required:
+        - properties
+      properties:
+        properties:
+          type: object
+          description: |
+            Property map to update on the meal page. Supported keys:
+            - Namn (title property, Notion id `title`)
+            - URL (url property, Notion id `%3BH~Q`)
+            - Betyg (multi_select, Notion id `E%3DH%7B`)
+            - Kommentar (rich_text, Notion id `qGVL`)
+            - Kategori (multi_select, Notion id `qN_L`)
+            Pass the standard Notion property payload for each key.
+          additionalProperties: true
+          example:
+            Namn:
+              title:
+                - type: text
+                  text:
+                    content: Pasta med tomats s och basilika
+            Kategori:
+              multi_select:
+                - name: Vego
+            Betyg:
+              multi_select:
+                - name: A1
+            Kommentar:
+              rich_text:
+                - type: text
+                  text:
+                    content: Snabbt, enkelt och barnv nligt.
+            URL:
+              url: https://example.com/recept
+      additionalProperties: false
