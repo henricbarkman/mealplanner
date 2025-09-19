@@ -6,10 +6,13 @@ import type {
   ListBlockChildrenResponse,
   ListBlockChildrenResponseResults,
   PageObjectResponse,
-  QueryDatabaseParameters,
   RichTextItemRequest,
 } from "npm:@notionhq/client/build/src/api-endpoints";
-import { getMealsDatabaseId, getNotionClient } from "../_shared/notion.ts";
+import {
+  getMealsDatabaseId,
+  getNotionClient,
+  notionApi,
+} from "../_shared/notion.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,7 +82,7 @@ async function handleGetMany(params: URLSearchParams): Promise<Response> {
   const filters: Array<Record<string, unknown>> = [];
   if (query) {
     filters.push({
-      property: "Name",
+      property: "Namn",
       title: { contains: query },
     });
   }
@@ -96,20 +99,42 @@ async function handleGetMany(params: URLSearchParams): Promise<Response> {
     });
   }
 
-  const response = await notionClient().databases.query({
-    database_id: mealsDatabaseId(),
+  const body: Record<string, unknown> = {
     page_size: limit,
-    start_cursor: cursor,
-    filter: filters.length > 0 ? { and: filters } : undefined,
-    sorts: [{ property: "Name", direction: "ascending" }],
-  } as QueryDatabaseParameters);
+    sorts: [{ property: "Namn", direction: "ascending" }],
+  };
+  if (filters.length > 0) {
+    body.filter = { and: filters };
+  }
+  if (cursor) {
+    body.start_cursor = cursor;
+  }
 
-  const meals = response.results.map((page) => mapMealPage(page));
+  const response = await notionApi(`/databases/${mealsDatabaseId()}/query`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    const errorMessage = typeof data?.message === "string"
+      ? data.message
+      : "Failed to query Notion database";
+    return jsonResponse(
+      { error: errorMessage, code: data?.code ?? null },
+      response.status,
+    );
+  }
+
+  const results = Array.isArray(data?.results) ? data.results : [];
+  const meals = results
+    .filter((item: { object?: string }) => item?.object === "page")
+    .map((page: PageObjectResponse) => mapMealPage(page));
 
   return jsonResponse({
     meals,
-    has_more: response.has_more ?? false,
-    next_cursor: response.next_cursor ?? null,
+    has_more: data?.has_more ?? false,
+    next_cursor: data?.next_cursor ?? null,
   });
 }
 
@@ -159,7 +184,7 @@ async function handlePost(req: Request): Promise<Response> {
   } = validation.value;
 
   const properties: Record<string, unknown> = {
-    Name: {
+    Namn: {
       title: [{ text: { content: title } }],
     },
   };
@@ -200,7 +225,7 @@ async function handlePost(req: Request): Promise<Response> {
 }
 
 function mapMealPage(page: PageObjectResponse) {
-  const title = extractTitle(page.properties?.Name);
+  const title = extractTitle(page.properties?.Namn);
   const categories = extractMultiSelect(page.properties?.Kategori);
   const ratings = extractMultiSelect(page.properties?.Betyg);
   const comment = extractRichText(page.properties?.Kommentar);
