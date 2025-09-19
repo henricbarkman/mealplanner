@@ -27,6 +27,64 @@ paths:
       responses:
         '200':
           description: Notion response payload
+  /v1/pages/{page_id}:
+    get:
+      operationId: getPage
+      summary: Fetch a Notion page by id
+      security:
+        - notionAuth: []
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          description: Notion page identifier (hyphenated or compact).
+          schema:
+            type: string
+        - name: Notion-Version
+          in: header
+          required: true
+          description: Notion API version header, e.g. 2022-06-28.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notion page payload
+  /v1/blocks/{block_id}/children:
+    get:
+      operationId: listBlockChildren
+      summary: List child blocks for a Notion block or page
+      security:
+        - notionAuth: []
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          description: Notion block or page identifier whose children to fetch.
+          schema:
+            type: string
+        - name: Notion-Version
+          in: header
+          required: true
+          description: Notion API version header, e.g. 2022-06-28.
+          schema:
+            type: string
+        - name: page_size
+          in: query
+          required: false
+          description: Number of child blocks to return per page (max 100).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: start_cursor
+          in: query
+          required: false
+          description: Cursor from a previous response to paginate results.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notion block children payload
 components:
   securitySchemes:
     notionAuth:
