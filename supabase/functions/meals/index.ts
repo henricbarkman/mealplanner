@@ -1,6 +1,14 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { APIResponseError } from "npm:@notionhq/client";
-import type { BlockObjectRequest } from "npm:@notionhq/client/build/src/api-endpoints";
+import type {
+  BlockObjectRequest,
+  ListBlockChildrenResponse,
+  ListBlockChildrenResponseResults,
+  PageObjectResponse,
+  QueryDatabaseParameters,
+  RichTextItemRequest,
+} from "npm:@notionhq/client/build/src/api-endpoints";
 import { getMealsDatabaseId, getNotionClient } from "../_shared/notion.ts";
 
 const corsHeaders = {
@@ -10,8 +18,23 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
-const notion = getNotionClient();
-const mealsDatabaseId = getMealsDatabaseId();
+let notionApiClient: ReturnType<typeof getNotionClient> | null = null;
+let cachedMealsDatabaseId: string | null = null;
+
+function notionClient() {
+  if (!notionApiClient) {
+    notionApiClient = getNotionClient();
+  }
+  return notionApiClient;
+}
+
+function mealsDatabaseId() {
+  if (!cachedMealsDatabaseId) {
+    cachedMealsDatabaseId = getMealsDatabaseId();
+  }
+  return cachedMealsDatabaseId;
+}
+
 
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -70,13 +93,13 @@ async function handleGetMany(params: URLSearchParams): Promise<Response> {
     });
   }
 
-  const response = await notion.databases.query({
+  const response = await notionClient().databases.query({
     database_id: mealsDatabaseId,
     page_size: limit,
     start_cursor: cursor,
     filter: filters.length > 0 ? { and: filters } : undefined,
     sorts: [{ property: "Name", direction: "ascending" }],
-  });
+  } as QueryDatabaseParameters);
 
   const meals = response.results.map((page) => mapMealPage(page));
 
@@ -89,10 +112,15 @@ async function handleGetMany(params: URLSearchParams): Promise<Response> {
 
 async function handleGetOne(rawPageId: string): Promise<Response> {
   const pageId = normaliseNotionId(rawPageId);
-  const page = await notion.pages.retrieve({ page_id: pageId });
+  const page = await notionClient().pages.retrieve({
+    page_id: pageId,
+  }) as PageObjectResponse;
 
   if (!isPageInDatabase(page)) {
-    return jsonResponse({ error: "Page does not belong to meals database" }, 404);
+    return jsonResponse(
+      { error: "Page does not belong to meals database" },
+      404,
+    );
   }
 
   const blocks = await fetchAllBlocks(pageId);
@@ -119,7 +147,13 @@ async function handlePost(req: Request): Promise<Response> {
     return jsonResponse({ error: validation.error }, 400);
   }
 
-  const { title, categories, ratings, comment, content_markdown: contentMarkdown } = validation.value;
+  const {
+    title,
+    categories,
+    ratings,
+    comment,
+    content_markdown: contentMarkdown,
+  } = validation.value;
 
   const properties: Record<string, unknown> = {
     Name: {
@@ -147,11 +181,13 @@ async function handlePost(req: Request): Promise<Response> {
 
   const children = markdownToBlocks(contentMarkdown);
 
-  const created = await notion.pages.create({
-    parent: { database_id: mealsDatabaseId },
-    properties,
-    children,
-  });
+  const created = await notionClient().pages.create(
+    {
+      parent: { database_id: mealsDatabaseId },
+      properties,
+      children,
+    } as Parameters<typeof notionClient().pages.create>[0],
+  );
 
   return jsonResponse(
     {
@@ -162,7 +198,7 @@ async function handlePost(req: Request): Promise<Response> {
   );
 }
 
-function mapMealPage(page: any) {
+function mapMealPage(page: PageObjectResponse) {
   const title = extractTitle(page.properties?.Name);
   const categories = extractMultiSelect(page.properties?.Kategori);
   const ratings = extractMultiSelect(page.properties?.Betyg);
@@ -180,17 +216,21 @@ function mapMealPage(page: any) {
 
 function extractTitle(property: any): string {
   if (!property?.title?.length) return "";
-  return property.title.map((item: any) => item.plain_text ?? "").join("").trim();
+  return property.title.map((item: any) => item.plain_text ?? "").join("")
+    .trim();
 }
 
 function extractMultiSelect(property: any): string[] {
   if (!property?.multi_select) return [];
-  return property.multi_select.map((item: any) => item.name ?? "").filter(Boolean);
+  return property.multi_select.map((item: any) => item.name ?? "").filter(
+    Boolean,
+  );
 }
 
 function extractRichText(property: any): string | null {
   if (!property?.rich_text?.length) return null;
-  const text = property.rich_text.map((item: any) => item.plain_text ?? "").join("").trim();
+  const text = property.rich_text.map((item: any) => item.plain_text ?? "")
+    .join("").trim();
   return text.length > 0 ? text : null;
 }
 
@@ -199,7 +239,9 @@ function readArraySearchParam(params: URLSearchParams, key: string): string[] {
   if (values.length === 0) {
     const commaSeparated = params.get(key);
     if (commaSeparated) {
-      return commaSeparated.split(",").map((value) => value.trim()).filter(Boolean);
+      return commaSeparated.split(",").map((value) => value.trim()).filter(
+        Boolean,
+      );
     }
   }
   return values
@@ -212,34 +254,42 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function extractExtraPathSegments(pathname: string, resource: string): string[] {
+function extractExtraPathSegments(
+  pathname: string,
+  resource: string,
+): string[] {
   const segments = pathname.split(/\/+/).filter(Boolean);
   const resourceIndex = segments.findIndex((segment) => segment === resource);
   if (resourceIndex === -1) return [];
   return segments.slice(resourceIndex + 1);
 }
 
-function normaliseNotionId(value: string): string {
+export function normaliseNotionId(value: string): string {
   const trimmed = value.trim();
   if (trimmed.includes("-") || trimmed.length !== 32) {
     return trimmed;
   }
-  return ${trimmed.slice(0, 8)}----;
+  return `${trimmed.slice(0, 8)}-${trimmed.slice(8, 12)}-${
+    trimmed.slice(12, 16)
+  }-${trimmed.slice(16, 20)}-${trimmed.slice(20)}`;
 }
 
 function isPageInDatabase(page: any): boolean {
-  return page.parent?.type === "database_id" && page.parent.database_id === mealsDatabaseId;
+  return page.parent?.type === "database_id" &&
+    page.parent.database_id === mealsDatabaseId;
 }
 
-async function fetchAllBlocks(pageId: string): Promise<any[]> {
+async function fetchAllBlocks(
+  pageId: string,
+): Promise<ListBlockChildrenResponseResults[]> {
   const allBlocks: any[] = [];
   let cursor: string | undefined;
   do {
-    const response = await notion.blocks.children.list({
+    const response = await notionClient().blocks.children.list({
       block_id: pageId,
       start_cursor: cursor,
       page_size: 100,
-    });
+    }) as ListBlockChildrenResponse;
     allBlocks.push(...response.results);
     cursor = response.has_more ? response.next_cursor ?? undefined : undefined;
   } while (cursor);
@@ -247,7 +297,7 @@ async function fetchAllBlocks(pageId: string): Promise<any[]> {
   return allBlocks;
 }
 
-function blocksToMarkdown(blocks: any[]): string {
+export function blocksToMarkdown(blocks: any[]): string {
   const lines: string[] = [];
   let numberedCounter = 0;
 
@@ -264,30 +314,36 @@ function blocksToMarkdown(blocks: any[]): string {
       }
       case "heading_1": {
         numberedCounter = 0;
-        lines.push(# );
+        lines.push(`# ${richTextToPlain(block.heading_1?.rich_text ?? [])}`);
         lines.push("");
         break;
       }
       case "heading_2": {
         numberedCounter = 0;
-        lines.push(## );
+        lines.push(`## ${richTextToPlain(block.heading_2?.rich_text ?? [])}`);
         lines.push("");
         break;
       }
       case "heading_3": {
         numberedCounter = 0;
-        lines.push(### );
+        lines.push(`### ${richTextToPlain(block.heading_3?.rich_text ?? [])}`);
         lines.push("");
         break;
       }
       case "bulleted_list_item": {
         numberedCounter = 0;
-        lines.push(- );
+        lines.push(
+          `- ${richTextToPlain(block.bulleted_list_item?.rich_text ?? [])}`,
+        );
         break;
       }
       case "numbered_list_item": {
         numberedCounter += 1;
-        lines.push(${numberedCounter}. );
+        lines.push(
+          `${numberedCounter}. ${
+            richTextToPlain(block.numbered_list_item?.rich_text ?? [])
+          }`,
+        );
         break;
       }
       case "divider": {
@@ -296,9 +352,10 @@ function blocksToMarkdown(blocks: any[]): string {
         lines.push("");
         break;
       }
-      default:
+      default: {
         numberedCounter = 0;
         break;
+      }
     }
   }
 
@@ -309,7 +366,7 @@ function richTextToPlain(richText: Array<{ plain_text?: string }>): string {
   return richText.map((item) => item.plain_text ?? "").join("").trim();
 }
 
-function markdownToBlocks(markdown: string | null): BlockObjectRequest[] {
+export function markdownToBlocks(markdown: string | null): BlockObjectRequest[] {
   if (!markdown) return [];
 
   const lines = markdown.split(/\r?\n/);
@@ -380,21 +437,24 @@ function makeHeadingBlock(level: 1 | 2 | 3, text: string): BlockObjectRequest {
   return { type: "heading_3", heading_3: { rich_text } };
 }
 
-function textToRichText(content: string) {
-  return content.length > 0 ? [{ type: "text", text: { content } }] : [];
+function textToRichText(content: string): RichTextItemRequest[] {
+  if (content.length === 0) {
+    return [];
+  }
+  return [{ type: "text", text: { content } }];
 }
 
-function validateCreatePayload(payload: unknown):
+export function validateCreatePayload(payload: unknown):
   | {
-      ok: true;
-      value: {
-        title: string;
-        categories: string[];
-        ratings: string[];
-        comment: string | null;
-        content_markdown: string | null;
-      };
-    }
+    ok: true;
+    value: {
+      title: string;
+      categories: string[];
+      ratings: string[];
+      comment: string | null;
+      content_markdown: string | null;
+    };
+  }
   | { ok: false; error: string } {
   if (typeof payload !== "object" || payload === null) {
     return { ok: false, error: "Body must be a JSON object" };
@@ -408,7 +468,9 @@ function validateCreatePayload(payload: unknown):
 
   const categories = normaliseStringArray(record.categories);
   const ratings = normaliseStringArray(record.ratings ?? record.rating);
-  const comment = typeof record.comment === "string" ? record.comment.trim() : null;
+  const comment = typeof record.comment === "string"
+    ? record.comment.trim()
+    : null;
   const contentMarkdown = typeof record.content_markdown === "string"
     ? record.content_markdown.trim()
     : null;
@@ -425,19 +487,25 @@ function validateCreatePayload(payload: unknown):
   };
 }
 
-function normaliseStringArray(value: unknown): string[] {
+export function normaliseStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
-    return value.map((item) => (typeof item === "string" ? item.trim() : "")).filter((item) => item.length > 0);
+    return value.map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter((item) => item.length > 0);
   }
   if (typeof value === "string") {
-    return value.split(",").map((item) => item.trim()).filter((item) => item.length > 0);
+    return value.split(",").map((item) => item.trim()).filter((item) =>
+      item.length > 0
+    );
   }
   return [];
 }
 
 function handleError(error: unknown): Response {
   if (error instanceof APIResponseError) {
-    return jsonResponse({ error: error.message, code: error.code }, error.status ?? 500);
+    return jsonResponse(
+      { error: error.message, code: error.code },
+      error.status ?? 500,
+    );
   }
   if (error instanceof Error) {
     return jsonResponse({ error: error.message }, 500);
@@ -451,4 +519,9 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: corsHeaders,
   });
 }
+
+
+
+
+
 

@@ -6,7 +6,7 @@ export const NOTION_MEALS_DATABASE_ID_ENV = "NOTION_MEALS_DATABASE_ID";
 function requireEnv(name: string): string {
   const value = Deno.env.get(name);
   if (!value) {
-    throw new Error(Missing environment variable: );
+    throw new Error(`Missing environment variable: ${name}`);
   }
   return value;
 }
