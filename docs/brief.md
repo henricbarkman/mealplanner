@@ -88,6 +88,7 @@ User ──> Custom GPT (Matplaneraren)
 
 > **Full policy och beteende:** `custom-gpt/systemprompt.md`.\
 > **Actions/kontrakt:** `custom-gpt/actions.md`.
+> **Notion API dokumentering** `docs/Notion-API-documentation/*.*`.
 
 ---
 
