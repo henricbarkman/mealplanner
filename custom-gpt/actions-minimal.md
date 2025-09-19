@@ -37,7 +37,7 @@ paths:
         - name: page_id
           in: path
           required: true
-          description: Notion page identifier (hyphenated or compact).
+          description: Notion page identifier (hyphenated eller kompakt).
           schema:
             type: string
         - name: Notion-Version
@@ -116,14 +116,16 @@ paths:
                     database_id:
                       type: string
                       description: Notion database id that will own the new page.
-                  additionalProperties: true
+                  additionalProperties: false
                 properties:
                   type: object
                   description: Page properties, matching the Notion database schema.
-                  additionalProperties: true
+                  additionalProperties:
+                    type: object
+                    description: Property payload following Notion's property value schema.
                 children:
                   type: array
-                  description: Optional block content to append to the page.
+                  description: Optional block content to append to the page when creating it.
                   items:
                     type: object
                     additionalProperties: true
@@ -159,7 +161,7 @@ components:
           description: Optional sort definitions.
         start_cursor:
           type: string
-          description: Cursor from a previous response.
+          description: Cursor from a previous response to paginate results.
         page_size:
           type: integer
           minimum: 1
