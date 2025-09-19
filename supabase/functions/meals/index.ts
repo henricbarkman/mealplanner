@@ -29,7 +29,7 @@ function notionClient() {
 }
 
 function mealsDatabaseId() {
-  if (!cachedMealsDatabaseId) {
+  if (!cachedmealsDatabaseId()) {
     cachedMealsDatabaseId = getMealsDatabaseId();
   }
   return cachedMealsDatabaseId;
@@ -94,7 +94,7 @@ async function handleGetMany(params: URLSearchParams): Promise<Response> {
   }
 
   const response = await notionClient().databases.query({
-    database_id: mealsDatabaseId,
+    database_id: mealsDatabaseId(),
     page_size: limit,
     start_cursor: cursor,
     filter: filters.length > 0 ? { and: filters } : undefined,
@@ -183,7 +183,7 @@ async function handlePost(req: Request): Promise<Response> {
 
   const created = await notionClient().pages.create(
     {
-      parent: { database_id: mealsDatabaseId },
+      parent: { database_id: mealsDatabaseId() },
       properties,
       children,
     } as Parameters<typeof notionClient().pages.create>[0],
@@ -276,7 +276,7 @@ export function normaliseNotionId(value: string): string {
 
 function isPageInDatabase(page: any): boolean {
   return page.parent?.type === "database_id" &&
-    page.parent.database_id === mealsDatabaseId;
+    page.parent.database_id === mealsDatabaseId();
 }
 
 async function fetchAllBlocks(
@@ -519,6 +519,7 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: corsHeaders,
   });
 }
+
 
 
 
