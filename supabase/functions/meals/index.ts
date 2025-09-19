@@ -29,14 +29,13 @@ function notionClient() {
 }
 
 function mealsDatabaseId() {
-  if (!cachedmealsDatabaseId()) {
+  if (!cachedMealsDatabaseId) {
     cachedMealsDatabaseId = getMealsDatabaseId();
   }
   return cachedMealsDatabaseId;
 }
 
-
-serve(async (req: Request): Promise<Response> => {
+export async function handler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
@@ -64,7 +63,11 @@ serve(async (req: Request): Promise<Response> => {
     console.error(error);
     return handleError(error);
   }
-});
+}
+
+if (import.meta.main) {
+  serve(handler);
+}
 
 async function handleGetMany(params: URLSearchParams): Promise<Response> {
   const query = params.get("query")?.trim();
@@ -181,13 +184,11 @@ async function handlePost(req: Request): Promise<Response> {
 
   const children = markdownToBlocks(contentMarkdown);
 
-  const created = await notionClient().pages.create(
-    {
-      parent: { database_id: mealsDatabaseId() },
-      properties,
-      children,
-    } as Parameters<typeof notionClient().pages.create>[0],
-  );
+  const created = await notionClient().pages.create({
+    parent: { database_id: mealsDatabaseId() },
+    properties,
+    children,
+  });
 
   return jsonResponse(
     {
@@ -366,7 +367,9 @@ function richTextToPlain(richText: Array<{ plain_text?: string }>): string {
   return richText.map((item) => item.plain_text ?? "").join("").trim();
 }
 
-export function markdownToBlocks(markdown: string | null): BlockObjectRequest[] {
+export function markdownToBlocks(
+  markdown: string | null,
+): BlockObjectRequest[] {
   if (!markdown) return [];
 
   const lines = markdown.split(/\r?\n/);
@@ -519,10 +522,3 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: corsHeaders,
   });
 }
-
-
-
-
-
-
-
