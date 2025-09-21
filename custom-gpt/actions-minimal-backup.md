@@ -1,170 +1,155 @@
 openapi: 3.1.0
 info:
-  title: Notion Mat Database
-  version: "1.0"
+  title: Notion Title Editor + Finder (DB-aware, minimal)
+  version: 1.1.1
 servers:
   - url: https://api.notion.com
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas: {}  # must be an object
+
 paths:
-  /v1/databases/250b0484bfa480b99341f936bcce2f6d/query:
-    post:
-      operationId: queryMatDatabase
-      summary: Query the Mat database
-      security:
-        - notionAuth: []
-      parameters:
-        - name: Notion-Version
-          in: header
-          required: true
-          description: Notion API version header, e.g. 2022-06-28.
-          schema:
-            type: string
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/QueryRequest"
-      responses:
-        "200":
-          description: Notion response payload
-  /v1/pages/{page_id}:
+  /v1/databases/{database_id}:
     get:
-      operationId: getPage
-      summary: Fetch a Notion page by id
+      operationId: getDatabaseDataSources
+      summary: Retrieve database container to discover its data_sources
       security:
-        - notionAuth: []
+        - bearerAuth: []
       parameters:
-        - name: page_id
+        - name: database_id
           in: path
           required: true
-          description: Notion page identifier (hyphenated eller kompakt).
           schema:
             type: string
+            # Lock to your DB by default; change if you ever need another
+            enum: ["250b0484bfa480b99341f936bcce2f6d"]
         - name: Notion-Version
           in: header
           required: true
-          description: Notion API version header, e.g. 2022-06-28.
           schema:
             type: string
+            enum: ["2025-09-03"]
       responses:
-        "200":
-          description: Notion page payload
-  /v1/blocks/{block_id}/children:
-    get:
-      operationId: listBlockChildren
-      summary: List child blocks for a Notion block or page
+        '200':
+          description: Returns a database object that includes a data_sources[] array
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+
+  /v1/data_sources/{data_source_id}/query:
+    post:
+      operationId: findPagesByName
+      summary: Find pages in a data source by title ("Name")
       security:
-        - notionAuth: []
+        - bearerAuth: []
       parameters:
-        - name: block_id
+        - name: data_source_id
           in: path
           required: true
-          description: Notion block or page identifier whose children to fetch.
           schema:
             type: string
         - name: Notion-Version
           in: header
           required: true
-          description: Notion API version header, e.g. 2022-06-28.
           schema:
             type: string
-        - name: page_size
-          in: query
-          required: false
-          description: Number of child blocks to return per page (max 100).
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-        - name: start_cursor
-          in: query
-          required: false
-          description: Cursor fr n f reg ende svar f r att paginera resultat.
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Notion block children payload
-  /v1/pages:
-    post:
-      operationId: createPage
-      summary: Create a Notion page in the Mat workspace
-      security:
-        - notionAuth: []
-      parameters:
-        - name: Notion-Version
-          in: header
-          required: true
-          description: Notion API version header, e.g. 2022-06-28.
-          schema:
-            type: string
+            enum: ["2025-09-03"]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - parent
-                - properties
               properties:
-                parent:
+                filter:
                   type: object
-                  required:
-                    - database_id
                   properties:
-                    database_id:
+                    property:
                       type: string
-                      description: Notion database id that will own the new page.
-                  additionalProperties: false
+                      enum: ["Name"]
+                    title:
+                      type: object
+                      properties:
+                        contains:
+                          type: string
+                        equals:
+                          type: string
+                page_size:
+                  type: integer
+            example:
+              filter:
+                property: "Name"
+                title: { contains: "Tacos" }
+              page_size: 3
+      responses:
+        '200':
+          description: Query results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+
+  /v1/pages/{page_id}:
+    patch:
+      operationId: updatePageTitle
+      summary: Update the "Name" title of a Notion page
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "251b0484-bfa4-80ec-8a9c-d612597d2d70"
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2025-09-03"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [properties]
+              properties:
                 properties:
                   type: object
-                  description: Page properties, matching the Notion database schema.
-                  additionalProperties:
-                    type: object
-                    description: Property payload following Notion's property value schema.
-                children:
-                  type: array
-                  description: Optional block content to append to the page when creating it.
-                  items:
-                    type: object
-                    additionalProperties: true
-                icon:
-                  type: object
-                  description: Optional page icon definition.
-                  additionalProperties: true
-                cover:
-                  type: object
-                  description: Optional page cover definition.
-                  additionalProperties: true
-              additionalProperties: false
+                  required: [Name]
+                  properties:
+                    Name:
+                      type: object
+                      required: [title]
+                      properties:
+                        title:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              text:
+                                type: object
+                                properties:
+                                  content:
+                                    type: string
+            example:
+              properties:
+                Name:
+                  title:
+                    - text: { content: "Tacos (edited)" }
       responses:
-        "200":
-          description: Notion page creation response
-components:
-  securitySchemes:
-    notionAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: notion_api_key
-  schemas:
-    QueryRequest:
-      type: object
-      properties:
-        filter:
-          type: object
-          description: Optional Notion filter definition.
-        sorts:
-          type: array
-          items:
-            type: object
-          description: Optional sort definitions.
-        start_cursor:
-          type: string
-          description: Cursor fr n f reg ende svar f r paginering.
-        page_size:
-          type: integer
-          minimum: 1
-          maximum: 100
-          description: Number of pages to return (max 100).
-      additionalProperties: true
+        '200':
+          description: Page updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
