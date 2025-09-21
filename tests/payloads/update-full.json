@@ -1,0 +1,42 @@
+﻿{
+  "properties": {
+    "Name": {
+      "title": [
+        {
+          "text": {
+            "content": "Uppdaterad titel via test"
+          }
+        }
+      ]
+    },
+    "URL": {
+      "url": "https://example.com/recept"
+    },
+    "Kommentar": {
+      "rich_text": [
+        {
+          "text": {
+            "content": "Kommentar uppdaterad via curl-test."
+          }
+        }
+      ]
+    },
+    "Kategori": {
+      "multi_select": [
+        { "name": "Vego" },
+        { "name": "Snabbt" }
+      ]
+    },
+    "Betyg": {
+      "multi_select": [
+        { "name": "A1" },
+        { "name": "L2" }
+      ]
+    },
+    "Status": {
+      "status": {
+        "name": "Planerad"
+      }
+    }
+  }
+}

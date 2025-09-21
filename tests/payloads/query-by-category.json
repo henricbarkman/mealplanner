@@ -1,0 +1,25 @@
+﻿{
+  "filter": {
+    "and": [
+      {
+        "property": "Kategori",
+        "multi_select": {
+          "contains": "Vego"
+        }
+      },
+      {
+        "property": "Status",
+        "status": {
+          "equals": "Planerad"
+        }
+      }
+    ]
+  },
+  "sorts": [
+    {
+      "property": "Name",
+      "direction": "ascending"
+    }
+  ],
+  "page_size": 5
+}

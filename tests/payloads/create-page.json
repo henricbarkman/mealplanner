@@ -1,0 +1,38 @@
+﻿{
+  "parent": {
+    "database_id": "__NOTION_DB_ID__"
+  },
+  "properties": {
+    "Name": {
+      "title": [
+        {
+          "text": {
+            "content": "__NOTION_CREATE_TITLE__"
+          }
+        }
+      ]
+    },
+    "URL": {
+      "url": "https://example.com/test"
+    },
+    "Kommentar": {
+      "rich_text": [
+        {
+          "text": {
+            "content": "Skapat via curl-test."
+          }
+        }
+      ]
+    },
+    "Kategori": {
+      "multi_select": [
+        { "name": "Vego" }
+      ]
+    },
+    "Betyg": {
+      "multi_select": [
+        { "name": "A1" }
+      ]
+    }
+  }
+}
