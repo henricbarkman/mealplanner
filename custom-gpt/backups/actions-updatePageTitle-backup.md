@@ -251,4 +251,3 @@ paths:
               schema:
                 type: object
                 properties: {}
-hej
