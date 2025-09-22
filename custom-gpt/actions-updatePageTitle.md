@@ -99,7 +99,7 @@ paths:
   /v1/pages/{page_id}:
     patch:
       operationId: updateMealPage
-      summary: Update the "Name" title and related metadata on a Notion page
+      summary: Update the "Name" title, "Kategori" tags, and related metadata on a Notion page
       security:
         - bearerAuth: []
       parameters:
@@ -177,6 +177,7 @@ paths:
                       additionalProperties: false
                     Kategori:
                       type: object
+                      description: Provide the full set of category tags to keep on the page.
                       properties:
                         multi_select:
                           type: array
@@ -220,6 +221,17 @@ paths:
                     Name:
                       title:
                         - text: { content: "Tacos (edit)" }
+              titleWithCategories:
+                summary: Update Name and Kategori tags
+                value:
+                  properties:
+                    Name:
+                      title:
+                        - text: { content: "Snabb vegocurry" }
+                    Kategori:
+                      multi_select:
+                        - name: "Vego"
+                        - name: "Vardagsmat"
               titleAndMetadata:
                 summary: Update Name plus metadata fields
                 value:
