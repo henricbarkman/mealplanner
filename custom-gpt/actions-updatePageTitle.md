@@ -1,7 +1,7 @@
-openapi: 3.1.0
+﻿openapi: 3.1.0
 info:
-  title: Notion Title Editor + Finder (DB-aware, minimal)
-  version: 1.1.1
+  title: Notion Title Editor + Finder (DB-aware, extended)
+  version: 1.2.0
 servers:
   - url: https://api.notion.com
 components:
@@ -24,7 +24,6 @@ paths:
           required: true
           schema:
             type: string
-            # Lock to your DB by default; change if you ever need another
             enum: ["250b0484bfa480b99341f936bcce2f6d"]
         - name: Notion-Version
           in: header
@@ -79,8 +78,10 @@ paths:
                           type: string
                         equals:
                           type: string
+                  additionalProperties: false
                 page_size:
                   type: integer
+              additionalProperties: false
             example:
               filter:
                 property: "Name"
@@ -97,8 +98,8 @@ paths:
 
   /v1/pages/{page_id}:
     patch:
-      operationId: updatePageTitle
-      summary: Update the "Name" title of a Notion page
+      operationId: updateMealPage
+      summary: Update the "Name" title and related metadata on a Notion page
       security:
         - bearerAuth: []
       parameters:
@@ -124,7 +125,8 @@ paths:
               properties:
                 properties:
                   type: object
-                  required: [Name]
+                  description: Provide only the properties you need to update.
+                  additionalProperties: true
                   properties:
                     Name:
                       type: object
@@ -134,17 +136,113 @@ paths:
                           type: array
                           items:
                             type: object
+                            required: [text]
                             properties:
                               text:
                                 type: object
+                                required: [content]
                                 properties:
                                   content:
                                     type: string
-            example:
-              properties:
-                Name:
-                  title:
-                    - text: { content: "Tacos (edited)" }
+                                  link:
+                                    type: object
+                                    nullable: true
+                                    additionalProperties: true
+                    URL:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          nullable: true
+                      additionalProperties: false
+                    Kommentar:
+                      type: object
+                      properties:
+                        rich_text:
+                          type: array
+                          items:
+                            type: object
+                            required: [text]
+                            properties:
+                              text:
+                                type: object
+                                required: [content]
+                                properties:
+                                  content:
+                                    type: string
+                                  link:
+                                    type: object
+                                    nullable: true
+                                    additionalProperties: true
+                      additionalProperties: false
+                    Kategori:
+                      type: object
+                      properties:
+                        multi_select:
+                          type: array
+                          items:
+                            type: object
+                            required: [name]
+                            properties:
+                              name:
+                                type: string
+                          default: []
+                      additionalProperties: false
+                    Betyg:
+                      type: object
+                      properties:
+                        multi_select:
+                          type: array
+                          items:
+                            type: object
+                            required: [name]
+                            properties:
+                              name:
+                                type: string
+                          default: []
+                      additionalProperties: false
+                    Status:
+                      type: object
+                      properties:
+                        status:
+                          type: object
+                          required: [name]
+                          properties:
+                            name:
+                              type: string
+                          additionalProperties: false
+                      additionalProperties: false
+            examples:
+              titleOnly:
+                summary: Update just the Name property
+                value:
+                  properties:
+                    Name:
+                      title:
+                        - text: { content: "Tacos (edit)" }
+              titleAndMetadata:
+                summary: Update Name plus metadata fields
+                value:
+                  properties:
+                    Name:
+                      title:
+                        - text: { content: "Vardagsgryta" }
+                    URL:
+                      url: "https://example.com/vardagsgryta"
+                    Kommentar:
+                      rich_text:
+                        - text: { content: "Stang spisen vid 92 C." }
+                    Kategori:
+                      multi_select:
+                        - name: "Vego"
+                        - name: "Snabbt"
+                    Betyg:
+                      multi_select:
+                        - name: "A1"
+                        - name: "L2"
+                    Status:
+                      status:
+                        name: "Planerad"
       responses:
         '200':
           description: Page updated

@@ -15,8 +15,9 @@ if ($Help) {
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = (Resolve-Path (Join-Path $scriptRoot '..')).Path
-$payloadDir = Join-Path $repoRoot 'tests' 'payloads'
-$responsesDir = Join-Path $repoRoot 'tests' 'responses'
+$testsRoot = Join-Path $repoRoot 'tests'
+$payloadDir = Join-Path $testsRoot 'payloads'
+$responsesDir = Join-Path $testsRoot 'responses'
 
 New-Item -ItemType Directory -Force -Path $responsesDir | Out-Null
 
@@ -115,7 +116,7 @@ if (Should-Run -Name 'Query') {
     Invoke-CurlTest -Name 'Query' -Method 'POST' -Url "https://api.notion.com/v1/databases/$dbId/query" -PayloadPath $payload
 }
 
-if (Should-Run -Name 'Update' -or Should-Run -Name 'GetPage' -or Should-Run -Name 'Children') {
+if ((Should-Run -Name 'Update') -or (Should-Run -Name 'GetPage') -or (Should-Run -Name 'Children')) {
     if ([string]::IsNullOrWhiteSpace($pageId)) {
         Write-Warning 'NOTION_SAMPLE_PAGE_ID not set; skipping Update/GetPage/Children tests.'
     } else {

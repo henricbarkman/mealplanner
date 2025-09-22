@@ -1,0 +1,381 @@
+{
+    "name": "Matplaneraren Orchestrator (Supabase Edge)",
+    "flow": [
+      {
+        "id": 1,
+        "module": "util:SetVariables",
+        "version": 1,
+        "parameters": {},
+        "mapper": {
+          "variables": [
+            { "name": "BASE_URL", "value": "https://YOUR-PROJECT.supabase.co/functions/v1" },
+            { "name": "API_KEY", "value": "YOUR_SERVICE_OR_EDGE_FUNCTION_KEY" }
+          ]
+        },
+        "metadata": {
+          "designer": { "x": -700, "y": 0, "name": "Set variables" }
+        }
+      },
+      {
+        "id": 2,
+        "module": "util:ComposeTransformer",
+        "version": 1,
+        "parameters": {},
+        "mapper": {
+          "value": "{\n  \"action\": \"meal_plan.create\",\n  \"data\": {\n    \"weekStart\": \"2025-09-22\",\n    \"people\": 4,\n    \"prefs\": {\"vegetarian\": true, \"fish\": true, \"noSpicy\": true},\n    \"allergies\": [\"milk\",\"egg\",\"nuts\",\"gluten\",\"coconut\"]\n  }\n}"
+        },
+        "metadata": {
+          "designer": { "x": -450, "y": 0, "name": "Sample input (replace with Webhook later)" }
+        }
+      },
+      {
+        "id": 3,
+        "module": "json:ParseJSON",
+        "version": 1,
+        "parameters": { "type": null },
+        "mapper": { "json": "{{2.value}}" },
+        "metadata": {
+          "designer": { "x": -200, "y": 0, "name": "Parse JSON" },
+          "expect": [
+            { "name": "json", "type": "text", "label": "JSON string", "required": true }
+          ],
+          "restore": { "parameters": { "type": { "label": "Choose a data structure" } } }
+        }
+      },
+      {
+        "id": 4,
+        "module": "builtin:BasicRouter",
+        "version": 1,
+        "mapper": null,
+        "metadata": { "designer": { "x": 50, "y": 0, "name": "Router: action" } },
+        "routes": [
+          {
+            "filter": {
+              "name": "meal_plan.create",
+              "conditions": [[{ "a": "{{3.action}}", "o": "eq", "b": "meal_plan.create" }]]
+            },
+            "flow": [
+              {
+                "id": 5,
+                "module": "http:ActionSendData",
+                "version": 3,
+                "parameters": { "handleErrors": false, "useNewZLibDeCompress": true },
+                "mapper": {
+                  "url": "{{1.BASE_URL}}/meal-plan",
+                  "serializeUrl": false,
+                  "method": "post",
+                  "headers": [
+                    { "name": "Authorization", "value": "Bearer {{1.API_KEY}}" },
+                    { "name": "Content-Type", "value": "application/json" }
+                  ],
+                  "qs": [],
+                  "bodyType": "raw",
+                  "parseResponse": true,
+                  "authUser": "",
+                  "authPass": "",
+                  "timeout": "",
+                  "shareCookies": false,
+                  "ca": "",
+                  "rejectUnauthorized": true,
+                  "followRedirect": true,
+                  "useQuerystring": false,
+                  "gzip": true,
+                  "useMtls": false,
+                  "followAllRedirects": false,
+                  "contentType": "application/json",
+                  "data": "{{json(3.data)}}"
+                },
+                "metadata": { "designer": { "x": 350, "y": -180, "name": "POST /meal-plan" } }
+              },
+              {
+                "id": 6,
+                "module": "json:CreateJSON",
+                "version": 1,
+                "parameters": { "type": null, "space": "" },
+                "mapper": {
+                  "result": "{{5.body}}",
+                  "status": "{{5.statusCode}}",
+                  "action": "meal_plan.create"
+                },
+                "metadata": { "designer": { "x": 600, "y": -180, "name": "Output (meal plan)" } }
+              }
+            ]
+          },
+          {
+            "filter": {
+              "name": "shopping_list.upsert",
+              "conditions": [[{ "a": "{{3.action}}", "o": "eq", "b": "shopping_list.upsert" }]]
+            },
+            "flow": [
+              {
+                "id": 8,
+                "module": "http:ActionSendData",
+                "version": 3,
+                "parameters": { "handleErrors": false, "useNewZLibDeCompress": true },
+                "mapper": {
+                  "url": "{{1.BASE_URL}}/shopping-list",
+                  "serializeUrl": false,
+                  "method": "post",
+                  "headers": [
+                    { "name": "Authorization", "value": "Bearer {{1.API_KEY}}" },
+                    { "name": "Content-Type", "value": "application/json" }
+                  ],
+                  "qs": [],
+                  "bodyType": "raw",
+                  "parseResponse": true,
+                  "authUser": "",
+                  "authPass": "",
+                  "timeout": "",
+                  "shareCookies": false,
+                  "ca": "",
+                  "rejectUnauthorized": true,
+                  "followRedirect": true,
+                  "useQuerystring": false,
+                  "gzip": true,
+                  "useMtls": false,
+                  "followAllRedirects": false,
+                  "contentType": "application/json",
+                  "data": "{{json(3.data)}}"
+                },
+                "metadata": { "designer": { "x": 350, "y": 0, "name": "POST /shopping-list" } }
+              },
+              {
+                "id": 9,
+                "module": "json:CreateJSON",
+                "version": 1,
+                "parameters": { "type": null, "space": "" },
+                "mapper": {
+                  "result": "{{8.body}}",
+                  "status": "{{8.statusCode}}",
+                  "action": "shopping_list.upsert"
+                },
+                "metadata": { "designer": { "x": 600, "y": 0, "name": "Output (shopping list)" } }
+              }
+            ]
+          },
+          {
+            "filter": {
+              "name": "cart.links.create",
+              "conditions": [[{ "a": "{{3.action}}", "o": "eq", "b": "cart.links.create" }]]
+            },
+            "flow": [
+              {
+                "id": 10,
+                "module": "http:ActionSendData",
+                "version": 3,
+                "parameters": { "handleErrors": false, "useNewZLibDeCompress": true },
+                "mapper": {
+                  "url": "{{1.BASE_URL}}/cart/links",
+                  "serializeUrl": false,
+                  "method": "post",
+                  "headers": [
+                    { "name": "Authorization", "value": "Bearer {{1.API_KEY}}" },
+                    { "name": "Content-Type", "value": "application/json" }
+                  ],
+                  "qs": [],
+                  "bodyType": "raw",
+                  "parseResponse": true,
+                  "authUser": "",
+                  "authPass": "",
+                  "timeout": "",
+                  "shareCookies": false,
+                  "ca": "",
+                  "rejectUnauthorized": true,
+                  "followRedirect": true,
+                  "useQuerystring": false,
+                  "gzip": true,
+                  "useMtls": false,
+                  "followAllRedirects": false,
+                  "contentType": "application/json",
+                  "data": "{{json(3.data)}}"
+                },
+                "metadata": { "designer": { "x": 350, "y": 180, "name": "POST /cart/links" } }
+              },
+              {
+                "id": 11,
+                "module": "json:CreateJSON",
+                "version": 1,
+                "parameters": { "type": null, "space": "" },
+                "mapper": {
+                  "result": "{{10.body}}",
+                  "status": "{{10.statusCode}}",
+                  "action": "cart.links.create"
+                },
+                "metadata": { "designer": { "x": 600, "y": 180, "name": "Output (cart links)" } }
+              }
+            ]
+          },
+          {
+            "filter": {
+              "name": "recipes.search",
+              "conditions": [[{ "a": "{{3.action}}", "o": "eq", "b": "recipes.search" }]]
+            },
+            "flow": [
+              {
+                "id": 12,
+                "module": "http:ActionSendData",
+                "version": 3,
+                "parameters": { "handleErrors": false, "useNewZLibDeCompress": true },
+                "mapper": {
+                  "url": "{{1.BASE_URL}}/recipes",
+                  "serializeUrl": false,
+                  "method": "get",
+                  "headers": [
+                    { "name": "Authorization", "value": "Bearer {{1.API_KEY}}" }
+                  ],
+                  "qs": [
+                    { "name": "q", "value": "{{3.data.query}}" }
+                  ],
+                  "bodyType": "",
+                  "parseResponse": true,
+                  "authUser": "",
+                  "authPass": "",
+                  "timeout": "",
+                  "shareCookies": false,
+                  "ca": "",
+                  "rejectUnauthorized": true,
+                  "followRedirect": true,
+                  "useQuerystring": false,
+                  "gzip": true,
+                  "useMtls": false,
+                  "followAllRedirects": false
+                },
+                "metadata": { "designer": { "x": 350, "y": 360, "name": "GET /recipes?q=" } }
+              },
+              {
+                "id": 13,
+                "module": "json:CreateJSON",
+                "version": 1,
+                "parameters": { "type": null, "space": "" },
+                "mapper": {
+                  "result": "{{12.body}}",
+                  "status": "{{12.statusCode}}",
+                  "action": "recipes.search"
+                },
+                "metadata": { "designer": { "x": 600, "y": 360, "name": "Output (recipes search)" } }
+              }
+            ]
+          },
+          {
+            "filter": {
+              "name": "recipes.get",
+              "conditions": [[{ "a": "{{3.action}}", "o": "eq", "b": "recipes.get" }]]
+            },
+            "flow": [
+              {
+                "id": 14,
+                "module": "http:ActionSendData",
+                "version": 3,
+                "parameters": { "handleErrors": false, "useNewZLibDeCompress": true },
+                "mapper": {
+                  "url": "{{1.BASE_URL}}/recipes/{{3.data.id}}",
+                  "serializeUrl": false,
+                  "method": "get",
+                  "headers": [
+                    { "name": "Authorization", "value": "Bearer {{1.API_KEY}}" }
+                  ],
+                  "qs": [],
+                  "bodyType": "",
+                  "parseResponse": true,
+                  "authUser": "",
+                  "authPass": "",
+                  "timeout": "",
+                  "shareCookies": false,
+                  "ca": "",
+                  "rejectUnauthorized": true,
+                  "followRedirect": true,
+                  "useQuerystring": false,
+                  "gzip": true,
+                  "useMtls": false,
+                  "followAllRedirects": false
+                },
+                "metadata": { "designer": { "x": 350, "y": 540, "name": "GET /recipes/{id}" } }
+              },
+              {
+                "id": 15,
+                "module": "json:CreateJSON",
+                "version": 1,
+                "parameters": { "type": null, "space": "" },
+                "mapper": {
+                  "result": "{{14.body}}",
+                  "status": "{{14.statusCode}}",
+                  "action": "recipes.get"
+                },
+                "metadata": { "designer": { "x": 600, "y": 540, "name": "Output (recipe)" } }
+              }
+            ]
+          },
+          {
+            "filter": {
+              "name": "recipes.create",
+              "conditions": [[{ "a": "{{3.action}}", "o": "eq", "b": "recipes.create" }]]
+            },
+            "flow": [
+              {
+                "id": 16,
+                "module": "http:ActionSendData",
+                "version": 3,
+                "parameters": { "handleErrors": false, "useNewZLibDeCompress": true },
+                "mapper": {
+                  "url": "{{1.BASE_URL}}/recipes",
+                  "serializeUrl": false,
+                  "method": "post",
+                  "headers": [
+                    { "name": "Authorization", "value": "Bearer {{1.API_KEY}}" },
+                    { "name": "Content-Type", "value": "application/json" }
+                  ],
+                  "qs": [],
+                  "bodyType": "raw",
+                  "parseResponse": true,
+                  "authUser": "",
+                  "authPass": "",
+                  "timeout": "",
+                  "shareCookies": false,
+                  "ca": "",
+                  "rejectUnauthorized": true,
+                  "followRedirect": true,
+                  "useQuerystring": false,
+                  "gzip": true,
+                  "useMtls": false,
+                  "followAllRedirects": false,
+                  "contentType": "application/json",
+                  "data": "{{json(3.data)}}"
+                },
+                "metadata": { "designer": { "x": 350, "y": 720, "name": "POST /recipes" } }
+              },
+              {
+                "id": 17,
+                "module": "json:CreateJSON",
+                "version": 1,
+                "parameters": { "type": null, "space": "" },
+                "mapper": {
+                  "result": "{{16.body}}",
+                  "status": "{{16.statusCode}}",
+                  "action": "recipes.create"
+                },
+                "metadata": { "designer": { "x": 600, "y": 720, "name": "Output (recipe created)" } }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "instant": false,
+      "version": 1,
+      "scenario": {
+        "maxErrors": 3,
+        "autoCommit": true,
+        "roundtrips": 1,
+        "sequential": false,
+        "confidential": false,
+        "dataloss": false,
+        "dlq": false,
+        "freshVariables": false,
+        "autoCommitTriggerLast": true
+      },
+      "designer": { "orphans": [] }
+    },
+    "scheduling": { "type": "indefinitely", "interval": 900, "delay": 0 }
+  }
+  
