@@ -10,7 +10,6 @@ components:
       type: http
       scheme: bearer
   schemas: {}  # must be an object
-
 paths:
   /v1/databases/{database_id}:
     get:
@@ -201,17 +200,6 @@ paths:
                                 type: string
                           default: []
                       additionalProperties: false
-                    Status:
-                      type: object
-                      properties:
-                        status:
-                          type: object
-                          required: [name]
-                          properties:
-                            name:
-                              type: string
-                          additionalProperties: false
-                      additionalProperties: false
             examples:
               titleOnly:
                 summary: Update just the Name property
@@ -240,9 +228,6 @@ paths:
                       multi_select:
                         - name: "A1"
                         - name: "L2"
-                    Status:
-                      status:
-                        name: "Planerad"
       responses:
         '200':
           description: Page updated
