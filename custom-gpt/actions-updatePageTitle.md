@@ -1,4 +1,4 @@
-﻿openapi: 3.1.0
+openapi: 3.1.0
 info:
   title: Notion Title Editor + Finder (DB-aware, extended)
   version: 1.2.0
@@ -608,7 +608,6 @@ paths:
               schema:
                 type: object
                 properties: {}
-
   /v1/blocks/{block_id}:
     patch:
       operationId: updateBlockContent
