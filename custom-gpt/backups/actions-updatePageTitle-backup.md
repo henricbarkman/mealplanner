@@ -39,6 +39,77 @@ paths:
                 type: object
                 properties: {}
 
+  /v1/databases/{database_id}/query:
+    post:
+      operationId: listDatabasePages
+      summary: Query a database to enumerate pages and child databases
+      description: |
+        Lists the pages and/or sub-databases contained in a database. When no filter is supplied all entries
+        are returned, paginated according to the request options. Requires using a Notion API version no
+        later than 2022-06-28 because the endpoint is deprecated in newer releases.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: database_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2022-06-28"]
+        - name: filter_properties
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: >-
+            Repeatable query parameter that limits the response to specific property value IDs when paired
+            with a filter.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                filter:
+                  type: object
+                  description: Criteria that limit which pages are returned.
+                  additionalProperties: true
+                sorts:
+                  type: array
+                  description: Sorting instructions that control result ordering.
+                  items:
+                    type: object
+                    additionalProperties: true
+                start_cursor:
+                  type: string
+                  description: Cursor provided by the API to fetch the next page of results.
+                page_size:
+                  type: integer
+                  maximum: 100
+                  description: Desired number of items to include in the response (max 100).
+            examples:
+              listAllPages:
+                summary: Return the first 50 entries without filters
+                value:
+                  page_size: 50
+      responses:
+        '200':
+          description: Successful database query response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+
   /v1/data_sources/{data_source_id}/query:
     post:
       operationId: findPagesByName
