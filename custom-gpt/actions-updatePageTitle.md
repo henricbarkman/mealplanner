@@ -39,6 +39,77 @@ paths:
                 type: object
                 properties: {}
 
+  /v1/databases/{database_id}/query:
+    post:
+      operationId: listDatabasePages
+      summary: Query a database to enumerate pages and child databases
+      description: |
+        Lists the pages and/or sub-databases contained in a database. When no filter is supplied all entries
+        are returned, paginated according to the request options. Requires using a Notion API version no
+        later than 2022-06-28 because the endpoint is deprecated in newer releases.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: database_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2022-06-28"]
+        - name: filter_properties
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: >-
+            Repeatable query parameter that limits the response to specific property value IDs when paired
+            with a filter.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                filter:
+                  type: object
+                  description: Criteria that limit which pages are returned.
+                  additionalProperties: true
+                sorts:
+                  type: array
+                  description: Sorting instructions that control result ordering.
+                  items:
+                    type: object
+                    additionalProperties: true
+                start_cursor:
+                  type: string
+                  description: Cursor provided by the API to fetch the next page of results.
+                page_size:
+                  type: integer
+                  maximum: 100
+                  description: Desired number of items to include in the response (max 100).
+            examples:
+              listAllPages:
+                summary: Return the first 50 entries without filters
+                value:
+                  page_size: 50
+      responses:
+        '200':
+          description: Successful database query response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+
   /v1/data_sources/{data_source_id}/query:
     post:
       operationId: findPagesByName
@@ -96,6 +167,34 @@ paths:
                 properties: {}
 
   /v1/pages/{page_id}:
+    get:
+      operationId: retrieveMealPage
+      summary: Retrieve a Notion page's properties and parent information
+      description: Fetches the canonical representation of a page so the assistant can inspect current property values before editing.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "251b0484-bfa4-80ec-8a9c-d612597d2d70"
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2025-09-03"]
+      responses:
+        '200':
+          description: Page object including property values and parent reference
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+
     patch:
       operationId: updateMealPage
       summary: Update the "Name" title and related metadata on a Notion page
@@ -231,6 +330,48 @@ paths:
       responses:
         '200':
           description: Page updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+
+  /v1/blocks/{block_id}/children:
+    get:
+      operationId: listBlockChildren
+      summary: List the child blocks that make up a page's content
+      description: Returns the structured block tree underneath a block or page so the assistant can show the body content to the user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "251b0484-bfa4-80ec-8a9c-d612597d2d70"
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2025-09-03"]
+        - name: start_cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cursor provided by the API to fetch the next set of child blocks.
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+          description: Number of child blocks to return in the response (max 100).
+      responses:
+        '200':
+          description: Paginated list of child block objects
           content:
             application/json:
               schema:
