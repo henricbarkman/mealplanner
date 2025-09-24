@@ -166,6 +166,182 @@ paths:
                 type: object
                 properties: {}
 
+  /v1/pages:
+    post:
+      operationId: createMealPage
+      summary: Create a new page in the meal planner database
+      description: >-
+        Creates a page as a database entry so the assistant can add brand-new meals. The request must supply the
+        parent database along with property values for the required fields.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2025-09-03"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parent, properties]
+              additionalProperties: false
+              properties:
+                parent:
+                  type: object
+                  required: [database_id]
+                  additionalProperties: false
+                  properties:
+                    database_id:
+                      type: string
+                      enum: ["250b0484bfa480b99341f936bcce2f6d"]
+                properties:
+                  type: object
+                  description: Property values to initialize on the new page.
+                  additionalProperties: true
+                  properties:
+                    Name:
+                      type: object
+                      required: [title]
+                      properties:
+                        title:
+                          type: array
+                          minItems: 1
+                          items:
+                            type: object
+                            required: [text]
+                            properties:
+                              text:
+                                type: object
+                                required: [content]
+                                properties:
+                                  content:
+                                    type: string
+                                  link:
+                                    type: object
+                                    nullable: true
+                                    additionalProperties: true
+                    URL:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          nullable: true
+                      additionalProperties: false
+                    Kommentar:
+                      type: object
+                      properties:
+                        rich_text:
+                          type: array
+                          items:
+                            type: object
+                            required: [text]
+                            properties:
+                              text:
+                                type: object
+                                required: [content]
+                                properties:
+                                  content:
+                                    type: string
+                                  link:
+                                    type: object
+                                    nullable: true
+                                    additionalProperties: true
+                      additionalProperties: false
+                    Kategori:
+                      type: object
+                      properties:
+                        multi_select:
+                          type: array
+                          items:
+                            type: object
+                            required: [name]
+                            properties:
+                              name:
+                                type: string
+                          default: []
+                      additionalProperties: false
+                    Betyg:
+                      type: object
+                      properties:
+                        multi_select:
+                          type: array
+                          items:
+                            type: object
+                            required: [name]
+                            properties:
+                              name:
+                                type: string
+                          default: []
+                      additionalProperties: false
+                children:
+                  type: array
+                  description: Optional content blocks to insert in the page body.
+                  items:
+                    type: object
+                    additionalProperties: true
+            examples:
+              minimalTitle:
+                summary: Create a page with just the required Name property
+                value:
+                  parent:
+                    database_id: "250b0484bfa480b99341f936bcce2f6d"
+                  properties:
+                    Name:
+                      title:
+                        - text:
+                            content: "Nudelwok"
+              fullProperties:
+                summary: Create a page including metadata and starting content
+                value:
+                  parent:
+                    database_id: "250b0484bfa480b99341f936bcce2f6d"
+                  properties:
+                    Name:
+                      title:
+                        - text:
+                            content: "Rostad Pumpasallad"
+                    URL:
+                      url: "https://example.com/rostad-pumpasallad"
+                    Kommentar:
+                      rich_text:
+                        - text:
+                            content: "Servera med vitlöksbröd."
+                    Kategori:
+                      multi_select:
+                        - name: "Vego"
+                        - name: "Middag"
+                    Betyg:
+                      multi_select:
+                        - name: "A1"
+                  children:
+                    - object: "block"
+                      type: "heading_2"
+                      heading_2:
+                        rich_text:
+                          - type: "text"
+                            text:
+                              content: "Ingredienser"
+                    - object: "block"
+                      type: "bulleted_list_item"
+                      bulleted_list_item:
+                        rich_text:
+                          - type: "text"
+                            text:
+                              content: "Pumpa"
+      responses:
+        '200':
+          description: Page created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+
   /v1/pages/{page_id}:
     get:
       operationId: retrieveMealPage
