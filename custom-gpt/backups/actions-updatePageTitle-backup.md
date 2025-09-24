@@ -9,7 +9,62 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-  schemas: {}  # must be an object
+  schemas:
+    BlockRichText:
+      type: object
+      additionalProperties: false
+      properties:
+        rich_text:
+          type: array
+          description: New textual content to render inside the block.
+          items:
+            type: object
+            required: [type]
+            properties:
+              type:
+                type: string
+                description: Rich text item type, for example "text" or "mention".
+              text:
+                type: object
+                required: [content]
+                properties:
+                  content:
+                    type: string
+                  link:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+              mention:
+                type: object
+                additionalProperties: true
+                description: Mention payload when type is "mention".
+              equation:
+                type: object
+                additionalProperties: true
+                description: Equation payload when type is "equation".
+              annotations:
+                type: object
+                additionalProperties: true
+                description: Styling flags such as bold or italic.
+              plain_text:
+                type: string
+                description: Unformatted text that mirrors the content field.
+              href:
+                type: string
+                nullable: true
+                description: URL that the rich text item links to, if any.
+        color:
+          type: string
+          description: Optional color name from the Notion color palette.
+        is_toggleable:
+          type: boolean
+          description: Enable the block to toggle its nested children when true.
+        children:
+          type: array
+          description: Nested blocks for toggle and callout updates.
+          items:
+            type: object
+            additionalProperties: true
 paths:
   /v1/databases/{database_id}:
     get:
@@ -548,6 +603,97 @@ paths:
       responses:
         '200':
           description: Paginated list of child block objects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+  /v1/blocks/{block_id}:
+    patch:
+      operationId: updateBlockContent
+      summary: Update an existing block's textual content or metadata
+      description: >-
+        Edits a block in place so the assistant can fix typos, rewrite instructions, or toggle checkboxes on an
+        existing page. Supports textual block types, including headings, paragraphs, list items, quotes, callouts,
+        and to-dos.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "9f1e8f4a-4662-4f94-8bd8-b83b7645a143"
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2025-09-03"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                archived:
+                  type: boolean
+                  description: Archive the block when set to true.
+                paragraph:
+                  $ref: '#/components/schemas/BlockRichText'
+                heading_1:
+                  $ref: '#/components/schemas/BlockRichText'
+                heading_2:
+                  $ref: '#/components/schemas/BlockRichText'
+                heading_3:
+                  $ref: '#/components/schemas/BlockRichText'
+                bulleted_list_item:
+                  $ref: '#/components/schemas/BlockRichText'
+                numbered_list_item:
+                  $ref: '#/components/schemas/BlockRichText'
+                quote:
+                  $ref: '#/components/schemas/BlockRichText'
+                callout:
+                  allOf:
+                    - $ref: '#/components/schemas/BlockRichText'
+                    - type: object
+                      properties:
+                        icon:
+                          type: object
+                          additionalProperties: true
+                          description: Optional icon to display in the callout.
+                toggle:
+                  $ref: '#/components/schemas/BlockRichText'
+                to_do:
+                  allOf:
+                    - $ref: '#/components/schemas/BlockRichText'
+                    - type: object
+                      properties:
+                        checked:
+                          type: boolean
+                          description: Mark the to-do as completed when true.
+            examples:
+              rewriteParagraph:
+                summary: Update the copy inside an existing paragraph block
+                value:
+                  paragraph:
+                    rich_text:
+                      - text:
+                          content: "Koka pastan tills den är al dente och blanda med såsen."
+              completeTodo:
+                summary: Check off a to-do block and rewrite the instruction
+                value:
+                  to_do:
+                    rich_text:
+                      - text:
+                          content: "Hacka koriandern fint och strö över vid servering."
+                    checked: true
+      responses:
+        '200':
+          description: Updated block object
           content:
             application/json:
               schema:

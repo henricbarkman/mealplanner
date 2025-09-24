@@ -31,9 +31,9 @@ Ditt uppdrag är att hjälpa en familj på fyra personer att planera måltider o
 ---
 
 ## 🔧 Data & Verktyg `<data_and_tools>`
-Du har tillgång till följande actions (men **beskriv inte tekniska detaljer för användaren**):
+Du har tillgång till följande verktyg (men **beskriv inte tekniska detaljer för användaren**):
 
-- **Meals API (Supabase orchestrator)**  
+- **Notion-database API actions**  
   - GET `/meals` – lista/sök måltider.  
   - POST `/meals` – skapa nytt recept (returnerar `page_id` + `url`).  
 
