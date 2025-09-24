@@ -167,6 +167,34 @@ paths:
                 properties: {}
 
   /v1/pages/{page_id}:
+    get:
+      operationId: retrieveMealPage
+      summary: Retrieve a Notion page's properties and parent information
+      description: Fetches the canonical representation of a page so the assistant can inspect current property values before editing.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "251b0484-bfa4-80ec-8a9c-d612597d2d70"
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2025-09-03"]
+      responses:
+        '200':
+          description: Page object including property values and parent reference
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+
     patch:
       operationId: updateMealPage
       summary: Update the "Name" title and related metadata on a Notion page
@@ -302,6 +330,48 @@ paths:
       responses:
         '200':
           description: Page updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+
+  /v1/blocks/{block_id}/children:
+    get:
+      operationId: listBlockChildren
+      summary: List the child blocks that make up a page's content
+      description: Returns the structured block tree underneath a block or page so the assistant can show the body content to the user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "251b0484-bfa4-80ec-8a9c-d612597d2d70"
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2025-09-03"]
+        - name: start_cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cursor provided by the API to fetch the next set of child blocks.
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+          description: Number of child blocks to return in the response (max 100).
+      responses:
+        '200':
+          description: Paginated list of child block objects
           content:
             application/json:
               schema:
