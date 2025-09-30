@@ -371,15 +371,7 @@ paths:
       operationId: getDatabase
       summary: Kalla denna endpoint före `/query` för att hämta property-namn och typer (bygg ett PropertyResolver dynamiskt).
       description: |
-        Läs alltid metadata innan du filtrerar eller uppdaterar recept så att du kan anpassa dig till nya property-namn eller ändrade typer i Notion.
-        Bygg ett PropertyResolver dynamiskt och mappa rollerna till aktuella property-nycklar:
-          - `titleProp` (titel för receptet)
-          - `categoryProp` (huvudkategori, t.ex. Fisk)
-          - `labelProp` (extra etiketter/multi_select)
-          - `planCheckboxProp` (om receptet ska planeras)
-          - `lastAteProp` (senaste tillagning, datum)
-          - `cooldownProp` (dagar innan receptet kan planeras igen)
-          - `planScoreProp` (formelvärde som hjälper sortering/prioritering).
+          Hämta databasmetadata innan du filtrerar eller uppdaterar recept; bygg en PropertyResolver som mappar titel, kategori, etiketter, planering, datum, cooldown och score till aktuella property-nycklar.
       security:
         - bearerAuth: []
       parameters:
