@@ -1,7 +1,8 @@
 ﻿openapi: 3.1.0
 info:
-  title: Notion Title Editor + Finder (DB-aware, extended)
-  version: 1.2.0
+  title: Notion Meal Planner Actions
+  description: Åtgärder för att söka, läsa och skriva recept i en Notion-databas för Matplaneraren.
+  version: 2.1.6
 servers:
   - url: https://api.notion.com
 components:
@@ -16,14 +17,16 @@ components:
       properties:
         rich_text:
           type: array
-          description: New textual content to render inside the block.
+          description: |
+            Textinnehåll i blocket. Inkludera alltid `"type": "text"` för enkla textnoder:
+            { "type": "text", "text": { "content": "Din text" } }.
           items:
             type: object
             required: [type]
             properties:
               type:
                 type: string
-                description: Rich text item type, for example "text" or "mention".
+                description: T.ex. "text" eller "mention".
               text:
                 type: object
                 required: [content]
@@ -37,39 +40,165 @@ components:
               mention:
                 type: object
                 additionalProperties: true
-                description: Mention payload when type is "mention".
               equation:
                 type: object
                 additionalProperties: true
-                description: Equation payload when type is "equation".
               annotations:
                 type: object
                 additionalProperties: true
-                description: Styling flags such as bold or italic.
               plain_text:
                 type: string
-                description: Unformatted text that mirrors the content field.
               href:
                 type: string
                 nullable: true
-                description: URL that the rich text item links to, if any.
         color:
           type: string
-          description: Optional color name from the Notion color palette.
-        is_toggleable:
-          type: boolean
-          description: Enable the block to toggle its nested children when true.
+          description: Valfri färg från Notions färgpalett.
         children:
           type: array
-          description: Nested blocks for toggle and callout updates.
+          description: Nästlade block (t.ex. för toggle/callout/heading med barn).
           items:
             type: object
             additionalProperties: true
+
+    HeadingRichText:
+      allOf:
+        - $ref: '#/components/schemas/BlockRichText'
+        - type: object
+          additionalProperties: false
+          properties:
+            is_toggleable:
+              type: boolean
+              description: Endast giltig för heading_1/2/3.
+
+    AppendChildrenPayload:
+      type: object
+      description: |
+        Body för att lägga till barnblock under ett block eller en sida.
+        **Viktigt:** Skicka `children` i JSON-body (inte som query eller separata kwargs).
+        Använd denna endpoint för att *lägga till nytt innehåll*. Använd PATCH `/v1/blocks/{block_id}` för att *redigera* ett befintligt block.
+      required: [children]
+      additionalProperties: true
+      properties:
+        children:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              object:
+                type: string
+                enum: ["block"]
+              type:
+                type: string
+                description: Blocktyp, t.ex. "paragraph", "heading_2", "bulleted_list_item".
+              paragraph:
+                $ref: '#/components/schemas/BlockRichText'
+              heading_1:
+                $ref: '#/components/schemas/HeadingRichText'
+              heading_2:
+                $ref: '#/components/schemas/HeadingRichText'
+              heading_3:
+                $ref: '#/components/schemas/HeadingRichText'
+              bulleted_list_item:
+                $ref: '#/components/schemas/BlockRichText'
+              numbered_list_item:
+                $ref: '#/components/schemas/BlockRichText'
+              quote:
+                $ref: '#/components/schemas/BlockRichText'
+              callout:
+                allOf:
+                  - $ref: '#/components/schemas/BlockRichText'
+                  - type: object
+                    additionalProperties: false
+                    properties:
+                      icon:
+                        type: object
+                        additionalProperties: true
+              toggle:
+                $ref: '#/components/schemas/BlockRichText'
+              to_do:
+                allOf:
+                  - $ref: '#/components/schemas/BlockRichText'
+                  - type: object
+                    additionalProperties: false
+                    properties:
+                      checked:
+                        type: boolean
+
 paths:
+
+  /v1/search:
+    post:
+      operationId: searchPages
+      summary: Sök efter sidor eller databaser (t.ex. hitta recept efter titel).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Notion-Version
+          in: header
+          required: true
+          description: Stabil Notion API-version.
+          schema:
+            type: string
+            enum: ["2022-06-28"]
+        - name: Content-Type
+          in: header
+          required: false
+          schema:
+            type: string
+            enum: ["application/json"]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                query:
+                  type: string
+                filter:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                      enum: [page, database]
+                    property:
+                      type: string
+                      enum: [object]
+                sort:
+                  type: object
+                  properties:
+                    direction:
+                      type: string
+                      enum: [ascending, descending]
+                    timestamp:
+                      type: string
+                      enum: [last_edited_time]
+            examples:
+              findByTitle:
+                summary: Hitta sidor som innehåller "Tacos" i titeln
+                value:
+                  query: "Tacos"
+                  filter: { value: "page", property: "object" }
+                  sort: { direction: "descending", timestamp: "last_edited_time" }
+      responses:
+        '200':
+          description: Sökresultat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+                additionalProperties: true
+
   /v1/databases/{database_id}:
     get:
-      operationId: getDatabaseDataSources
-      summary: Retrieve database container to discover its data_sources
+      operationId: getDatabase
+      summary: Hämta metadata för en databas (t.ex. property-nycklar).
       security:
         - bearerAuth: []
       parameters:
@@ -78,30 +207,27 @@ paths:
           required: true
           schema:
             type: string
-            enum: ["250b0484bfa480b99341f936bcce2f6d"]
+            example: "250b0484bfa480b99341f936bcce2f6d"
         - name: Notion-Version
           in: header
           required: true
           schema:
             type: string
-            enum: ["2025-09-03"]
+            enum: ["2022-06-28"]
       responses:
         '200':
-          description: Returns a database object that includes a data_sources[] array
+          description: Databasobjekt
           content:
             application/json:
               schema:
                 type: object
                 properties: {}
+                additionalProperties: true
 
   /v1/databases/{database_id}/query:
     post:
-      operationId: listDatabasePages
-      summary: Query a database to enumerate pages and child databases
-      description: |
-        Lists the pages and/or sub-databases contained in a database. When no filter is supplied all entries
-        are returned, paginated according to the request options. Requires using a Notion API version no
-        later than 2022-06-28 because the endpoint is deprecated in newer releases.
+      operationId: queryDatabase
+      summary: Lista/filtrera sidor i en databas (rekommenderad väg för att hitta recept).
       security:
         - bearerAuth: []
       parameters:
@@ -116,16 +242,12 @@ paths:
           schema:
             type: string
             enum: ["2022-06-28"]
-        - name: filter_properties
-          in: query
+        - name: Content-Type
+          in: header
           required: false
           schema:
-            type: array
-            items:
-              type: string
-          description: >-
-            Repeatable query parameter that limits the response to specific property value IDs when paired
-            with a filter.
+            type: string
+            enum: ["application/json"]
       requestBody:
         required: false
         content:
@@ -136,98 +258,43 @@ paths:
               properties:
                 filter:
                   type: object
-                  description: Criteria that limit which pages are returned.
                   additionalProperties: true
                 sorts:
                   type: array
-                  description: Sorting instructions that control result ordering.
                   items:
                     type: object
                     additionalProperties: true
                 start_cursor:
                   type: string
-                  description: Cursor provided by the API to fetch the next page of results.
                 page_size:
                   type: integer
                   maximum: 100
-                  description: Desired number of items to include in the response (max 100).
             examples:
-              listAllPages:
-                summary: Return the first 50 entries without filters
+              listFirst50:
+                summary: Första 50 utan filter
                 value:
                   page_size: 50
+              filterByTitle:
+                summary: Filtrera på Name innehåller "lax"
+                value:
+                  filter:
+                    property: "Name"
+                    title: { contains: "lax" }
+                  page_size: 10
       responses:
         '200':
-          description: Successful database query response
+          description: Sidor från databasen
           content:
             application/json:
               schema:
                 type: object
                 properties: {}
-
-  /v1/data_sources/{data_source_id}/query:
-    post:
-      operationId: findPagesByName
-      summary: Find pages in a data source by title ("Name")
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: data_source_id
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: Notion-Version
-          in: header
-          required: true
-          schema:
-            type: string
-            enum: ["2025-09-03"]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                filter:
-                  type: object
-                  properties:
-                    property:
-                      type: string
-                      enum: ["Name"]
-                    title:
-                      type: object
-                      properties:
-                        contains:
-                          type: string
-                        equals:
-                          type: string
-                  additionalProperties: false
-                page_size:
-                  type: integer
-              additionalProperties: false
-            example:
-              filter:
-                property: "Name"
-                title: { contains: "Tacos" }
-              page_size: 3
-      responses:
-        '200':
-          description: Query results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties: {}
+                additionalProperties: true
 
   /v1/pages:
     post:
-      operationId: createMealPage
-      summary: Create a new page in the meal planner database
-      description: >-
-        Creates a page as a database entry so the assistant can add brand-new meals. The request must supply the
-        parent database along with property values for the required fields.
+      operationId: createPage
+      summary: Skapa nytt receptkort (sida) i en databas.
       security:
         - bearerAuth: []
       parameters:
@@ -236,7 +303,13 @@ paths:
           required: true
           schema:
             type: string
-            enum: ["2025-09-03"]
+            enum: ["2022-06-28"]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["application/json"]
       requestBody:
         required: true
         content:
@@ -253,10 +326,10 @@ paths:
                   properties:
                     database_id:
                       type: string
-                      enum: ["250b0484bfa480b99341f936bcce2f6d"]
+                      description: ID för måldatabasen.
                 properties:
                   type: object
-                  description: Property values to initialize on the new page.
+                  description: Notion-egenskaper för den nya sidan.
                   additionalProperties: true
                   properties:
                     Name:
@@ -268,8 +341,11 @@ paths:
                           minItems: 1
                           items:
                             type: object
-                            required: [text]
+                            required: [type, text]
                             properties:
+                              type:
+                                type: string
+                                enum: ["text"]
                               text:
                                 type: object
                                 required: [content]
@@ -294,8 +370,11 @@ paths:
                           type: array
                           items:
                             type: object
-                            required: [text]
+                            required: [type, text]
                             properties:
+                              type:
+                                type: string
+                                enum: ["text"]
                               text:
                                 type: object
                                 required: [content]
@@ -335,73 +414,69 @@ paths:
                       additionalProperties: false
                 children:
                   type: array
-                  description: Optional content blocks to insert in the page body.
+                  description: Valfria block som brödtext (ingredienser, steg m.m.).
                   items:
                     type: object
                     additionalProperties: true
             examples:
-              minimalTitle:
-                summary: Create a page with just the required Name property
+              minimal:
+                summary: Skapa med bara titel
                 value:
-                  parent:
-                    database_id: "250b0484bfa480b99341f936bcce2f6d"
+                  parent: { database_id: "250b0484bfa480b99341f936bcce2f6d" }
                   properties:
                     Name:
                       title:
-                        - text:
-                            content: "Nudelwok"
-              fullProperties:
-                summary: Create a page including metadata and starting content
+                        - type: "text"
+                          text: { content: "Rostad pumpasallad" }
+              fullSv:
+                summary: Skapa med svenska fält + startinnehåll
                 value:
-                  parent:
-                    database_id: "250b0484bfa480b99341f936bcce2f6d"
+                  parent: { database_id: "250b0484bfa480b99341f936bcce2f6d" }
                   properties:
                     Name:
                       title:
-                        - text:
-                            content: "Rostad Pumpasallad"
-                    URL:
-                      url: "https://example.com/rostad-pumpasallad"
+                        - type: "text"
+                          text: { content: "Fiskgratäng med potatis" }
+                    URL: { url: "https://exempel.se/fiskgratang" }
                     Kommentar:
                       rich_text:
-                        - text:
-                            content: "Servera med vitlöksbröd."
+                        - type: "text"
+                          text: { content: "Barnvänlig. Servera med ärtor." }
                     Kategori:
                       multi_select:
-                        - name: "Vego"
+                        - name: "Fisk"
                         - name: "Middag"
                     Betyg:
                       multi_select:
                         - name: "A1"
+                        - name: "I1"
                   children:
                     - object: "block"
                       type: "heading_2"
                       heading_2:
                         rich_text:
                           - type: "text"
-                            text:
-                              content: "Ingredienser"
+                            text: { content: "Ingredienser" }
                     - object: "block"
                       type: "bulleted_list_item"
                       bulleted_list_item:
                         rich_text:
                           - type: "text"
-                            text:
-                              content: "Pumpa"
+                            text: { content: "600 g potatis" }
       responses:
         '200':
-          description: Page created successfully
+          description: Sida skapad
           content:
             application/json:
               schema:
                 type: object
                 properties: {}
+                additionalProperties: true
 
   /v1/pages/{page_id}:
     get:
-      operationId: retrieveMealPage
-      summary: Retrieve a Notion page's properties and parent information
-      description: Fetches the canonical representation of a page so the assistant can inspect current property values before editing.
+      operationId: retrievePage
+      summary: Hämta en sidas egenskaper.
       security:
         - bearerAuth: []
       parameters:
@@ -416,19 +491,20 @@ paths:
           required: true
           schema:
             type: string
-            enum: ["2025-09-03"]
+            enum: ["2022-06-28"]
       responses:
         '200':
-          description: Page object including property values and parent reference
+          description: Sida
           content:
             application/json:
               schema:
                 type: object
                 properties: {}
+                additionalProperties: true
 
     patch:
-      operationId: updateMealPage
-      summary: Update the "Name" title and related metadata on a Notion page
+      operationId: updatePageProperties
+      summary: Uppdatera titel och/eller metadata på en sida.
       security:
         - bearerAuth: []
       parameters:
@@ -443,18 +519,26 @@ paths:
           required: true
           schema:
             type: string
-            enum: ["2025-09-03"]
+            enum: ["2022-06-28"]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["application/json"]
       requestBody:
         required: true
+        description: Uppdaterar endast properties/metadata. Påverkar inte sidkroppen.
         content:
           application/json:
             schema:
               type: object
               required: [properties]
+              additionalProperties: false
               properties:
                 properties:
                   type: object
-                  description: Provide only the properties you need to update.
+                  description: Ange bara de egenskaper du vill uppdatera.
                   additionalProperties: true
                   properties:
                     Name:
@@ -465,8 +549,11 @@ paths:
                           type: array
                           items:
                             type: object
-                            required: [text]
+                            required: [type, text]
                             properties:
+                              type:
+                                type: string
+                                enum: ["text"]
                               text:
                                 type: object
                                 required: [content]
@@ -491,8 +578,11 @@ paths:
                           type: array
                           items:
                             type: object
-                            required: [text]
+                            required: [type, text]
                             properties:
+                              type:
+                                type: string
+                                enum: ["text"]
                               text:
                                 type: object
                                 required: [content]
@@ -531,25 +621,19 @@ paths:
                           default: []
                       additionalProperties: false
             examples:
-              titleOnly:
-                summary: Update just the Name property
+              updateTitleAndMeta:
+                summary: Uppdatera titel + metadata
                 value:
                   properties:
                     Name:
                       title:
-                        - text: { content: "Tacos (edit)" }
-              titleAndMetadata:
-                summary: Update Name plus metadata fields
-                value:
-                  properties:
-                    Name:
-                      title:
-                        - text: { content: "Vardagsgryta" }
-                    URL:
-                      url: "https://example.com/vardagsgryta"
+                        - type: "text"
+                          text: { content: "Vardagsgryta (mild)" }
+                    URL: { url: "https://exempel.se/vardagsgryta" }
                     Kommentar:
                       rich_text:
-                        - text: { content: "Stang spisen vid 92 C." }
+                        - type: "text"
+                          text: { content: "Håll 90–92 °C sjudning." }
                     Kategori:
                       multi_select:
                         - name: "Vego"
@@ -560,18 +644,19 @@ paths:
                         - name: "L2"
       responses:
         '200':
-          description: Page updated
+          description: Sida uppdaterad
           content:
             application/json:
               schema:
                 type: object
                 properties: {}
+                additionalProperties: true
 
   /v1/blocks/{block_id}/children:
     get:
       operationId: listBlockChildren
-      summary: List the child blocks that make up a page's content
-      description: Returns the structured block tree underneath a block or page so the assistant can show the body content to the user.
+      summary: Lista en sidas/blockets barnblock (brödtext).
+      description: Returnerar träd av barnblock under en sida/ett block.
       security:
         - bearerAuth: []
       parameters:
@@ -586,36 +671,118 @@ paths:
           required: true
           schema:
             type: string
-            enum: ["2025-09-03"]
+            enum: ["2022-06-28"]
         - name: start_cursor
           in: query
           required: false
           schema:
             type: string
-          description: Cursor provided by the API to fetch the next set of child blocks.
         - name: page_size
           in: query
           required: false
           schema:
             type: integer
             maximum: 100
-          description: Number of child blocks to return in the response (max 100).
       responses:
         '200':
-          description: Paginated list of child block objects
+          description: Barnblock
           content:
             application/json:
               schema:
                 type: object
                 properties: {}
+                additionalProperties: true
+
+    patch:
+      operationId: appendBlockChildren
+      summary: Lägg till nya barnblock (t.ex. receptsteg, inköpslista).
+      description: |
+        **Använd när du ska lägga till nytt innehåll (brödtext på sidan).**
+        Skicka `children` i JSON-body enligt exemplen; skicka inte `children` som query-param eller separata kwargs.
+        För att uppdatera existerande block, använd PATCH `/v1/blocks/{block_id}`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "251b0484-bfa4-80ec-8a9c-d612597d2d70"
+        - name: Notion-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["2022-06-28"]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["application/json"]
+      requestBody:
+        required: true
+        description: JSON-body som innehåller `children` (se schema och exempel).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppendChildrenPayload'
+            examples:
+              appendParagraph:
+                summary: Lägg till ett stycke i sidans innehåll
+                value:
+                  children:
+                    - object: "block"
+                      type: "paragraph"
+                      paragraph:
+                        rich_text:
+                          - type: "text"
+                            text: { content: "Se även crispy rice" }
+              appendList:
+                summary: Lägg till lista med två punkter
+                value:
+                  children:
+                    - object: "block"
+                      type: "bulleted_list_item"
+                      bulleted_list_item:
+                        rich_text:
+                          - type: "text"
+                            text: { content: "500 g broccoli" }
+                    - object: "block"
+                      type: "bulleted_list_item"
+                      bulleted_list_item:
+                        rich_text:
+                          - type: "text"
+                            text: { content: "2 vitlöksklyftor" }
+              appendTodo:
+                summary: Lägg till en att-göra-rad (okryssad)
+                value:
+                  children:
+                    - object: "block"
+                      type: "to_do"
+                      to_do:
+                        checked: false
+                        rich_text:
+                          - type: "text"
+                            text: { content: "Sätt på ugnen 225 °C" }
+      responses:
+        '200':
+          description: Nya block tillagda
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+                additionalProperties: true
+
   /v1/blocks/{block_id}:
     patch:
       operationId: updateBlockContent
-      summary: Update an existing block's textual content or metadata
-      description: >-
-        Edits a block in place so the assistant can fix typos, rewrite instructions, or toggle checkboxes on an
-        existing page. Supports textual block types, including headings, paragraphs, list items, quotes, callouts,
-        and to-dos.
+      summary: Uppdatera befintligt block (text, checka to-do, etc.).
+      description: |
+        **Använd när du vill redigera ett befintligt block.**
+        För att lägga till nytt innehåll, använd PATCH `/v1/blocks/{block_id}/children`.
       security:
         - bearerAuth: []
       parameters:
@@ -630,9 +797,16 @@ paths:
           required: true
           schema:
             type: string
-            enum: ["2025-09-03"]
+            enum: ["2022-06-28"]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["application/json"]
       requestBody:
         required: true
+        description: Ange fältet för den blocktyp du uppdaterar (t.ex. `paragraph`, `to_do`, `heading_2`).
         content:
           application/json:
             schema:
@@ -641,15 +815,14 @@ paths:
               properties:
                 archived:
                   type: boolean
-                  description: Archive the block when set to true.
                 paragraph:
                   $ref: '#/components/schemas/BlockRichText'
                 heading_1:
-                  $ref: '#/components/schemas/BlockRichText'
+                  $ref: '#/components/schemas/HeadingRichText'
                 heading_2:
-                  $ref: '#/components/schemas/BlockRichText'
+                  $ref: '#/components/schemas/HeadingRichText'
                 heading_3:
-                  $ref: '#/components/schemas/BlockRichText'
+                  $ref: '#/components/schemas/HeadingRichText'
                 bulleted_list_item:
                   $ref: '#/components/schemas/BlockRichText'
                 numbered_list_item:
@@ -660,42 +833,47 @@ paths:
                   allOf:
                     - $ref: '#/components/schemas/BlockRichText'
                     - type: object
+                      additionalProperties: false
                       properties:
                         icon:
                           type: object
                           additionalProperties: true
-                          description: Optional icon to display in the callout.
                 toggle:
                   $ref: '#/components/schemas/BlockRichText'
                 to_do:
                   allOf:
                     - $ref: '#/components/schemas/BlockRichText'
                     - type: object
+                      additionalProperties: false
                       properties:
                         checked:
                           type: boolean
-                          description: Mark the to-do as completed when true.
             examples:
               rewriteParagraph:
-                summary: Update the copy inside an existing paragraph block
+                summary: Förbättra instruktion i ett stycke
                 value:
                   paragraph:
                     rich_text:
-                      - text:
-                          content: "Koka pastan tills den är al dente och blanda med såsen."
+                      - type: "text"
+                        text: { content: "Koka pastan 8–10 min (al dente). Blanda med såsen." }
+                    color: "default"
               completeTodo:
-                summary: Check off a to-do block and rewrite the instruction
+                summary: Checka av en to-do och skriv om text
                 value:
                   to_do:
                     rich_text:
-                      - text:
-                          content: "Hacka koriandern fint och strö över vid servering."
+                      - type: "text"
+                        text: { content: "Häll av pastan och spara 1 dl kokvatten." }
                     checked: true
       responses:
         '200':
-          description: Updated block object
+          description: Block uppdaterat
           content:
             application/json:
               schema:
                 type: object
                 properties: {}
+                additionalProperties: true
+
+security:
+  - bearerAuth: []
